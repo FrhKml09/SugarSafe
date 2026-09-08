@@ -28,6 +28,7 @@ export function addToHistory(item) {
     id: crypto.randomUUID(),
     timestamp: new Date().toISOString(),
     dishName: item.dishName,
+    glycemicLoad: item.glycemicLoad || null,
     estimatedNutrition: item.estimatedNutrition,
     suggestion: item.suggestion,
   }
@@ -37,6 +38,14 @@ export function addToHistory(item) {
   }
   writeStorage(history)
   return entry
+}
+
+export function updateHistoryEntry(id, patch) {
+  const history = readStorage()
+  const index = history.findIndex((item) => item.id === id)
+  if (index === -1) return
+  history[index] = { ...history[index], ...patch }
+  writeStorage(history)
 }
 
 export function deleteFromHistory(id) {

@@ -20,7 +20,7 @@ Build the scan result display that shows dish identification, estimated nutritio
 
 1. Open `src/components/ScanResult.jsx`
 2. Implement a component that receives `result` (structured JSON from AI) and `onScanAgain` callback
-3. Display:
+3. Display:vercel.cmd dev
    - **Dish name:** Large, 20px–24px, warm dark (#2D2A26), top of card
    - **Components:** Soft pill badges (warm gray #F0EDE8 background, dark text)
    - **Estimated portion:** Simple text line

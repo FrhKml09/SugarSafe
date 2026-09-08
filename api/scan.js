@@ -1,3 +1,26 @@
+import { findDish } from '../src/data/malaysianDishes.js'
+
+const IDENTIFY_PROMPT = `You are a food identification assistant for SugarSafe, a Malaysian food-photo app for people managing or at risk of diabetes.
+
+Your ONLY job is to identify the dish and its visible components from the photo. Do NOT calculate or estimate calories, carbohydrates, sugar, or any nutrition values — nutrition is looked up separately from a fixed database, never invented here.
+
+Return ONLY valid JSON (no markdown, no extra text) with these exact fields:
+{
+  "dish_name": "string, the standard Malaysian name of the dish, e.g. 'Nasi Lemak'",
+  "dish_name_en": "string, a short English description",
+  "visible_components": ["string", ...],
+  "confidence": "high" | "medium" | "low",
+  "matched_known_dish": true or false
+}
+
+Rules:
+1. dish_name should be the standard Malaysian name if you recognize a common dish (e.g. Nasi Lemak, Roti Canai, Char Kway Teow, Mee Goreng Mamak, Teh Tarik, Nasi Kandar, Nasi Ayam, Curry Laksa, Banana Leaf Rice, Mee Rebus, Wantan Mee, Nasi Goreng Kampung, Economy Rice, Satay, Roti Telur, or similar).
+2. visible_components should list only parts/ingredients you can actually see in the image — do not invent items you cannot see.
+3. confidence reflects how sure you are about the dish identification itself, not about nutrition.
+4. matched_known_dish should be true only if you recognize this as a common, standard Malaysian dish (not a rare or highly customized meal).
+5. If no food is visible, set dish_name to "Unidentified dish", visible_components to an empty array, confidence to "low", and matched_known_dish to false.
+`
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res
@@ -14,54 +37,26 @@ export default async function handler(req, res) {
   }
 
   const apiKey = process.env.OPENAI_API_KEY
+  const baseURL = process.env.OPENAI_BASE_URL
+  const model = process.env.OPENAI_MODEL
 
-  if (!apiKey) {
+  if (!apiKey || !baseURL || !model) {
     return res
       .status(500)
-      .json({ success: false, error: 'Server misconfigured: missing API key' })
+      .json({ success: false, error: 'Server misconfigured: missing API configuration' })
   }
 
-  const prompt = `You are a nutrition assistant for a Malaysian food scanner app.
-
-Analyze the food image and return ONLY valid JSON with these exact fields:
-
-{
-  "dishName": "string",
-  "components": ["string"],
-  "confidence": 0.0,
-  "estimatedPortion": "string",
-  "estimatedNutrition": {
-    "carbohydrates": "string",
-    "calories": "string",
-    "sugar": "string"
-  },
-  "observations": "string",
-  "suggestion": "string"
-}
-
-Rules:
-- dishName is the main Malaysian dish name
-- components are the visible parts/ingredients
-- confidence is a 0-1 estimate
-- estimatedNutrition values are strings like "65g", "580 kcal", "12g"
-- observations is one short sentence about the meal
-- suggestion is one practical, culturally relevant tip
-- Do NOT give medical advice, glucose predictions, or medication recommendations
-- Keep all values as estimates
-`
-
-  const url =
-    'https://hong-hp.tail33e4e0.ts.net/v1/chat/completions'
+  const url = `${baseURL.replace(/\/+$/, '')}/chat/completions`
 
   const body = {
-    model: 'test-3a3301c8',
+    model: model,
     messages: [
       {
         role: 'user',
         content: [
           {
             type: 'text',
-            text: prompt,
+            text: IDENTIFY_PROMPT,
           },
           {
             type: 'image_url',
@@ -98,49 +93,39 @@ Rules:
     }
 
     const data = await aiRes.json()
-
-    const text =
-      data?.choices?.[0]?.message?.content || ''
+    const text = data?.choices?.[0]?.message?.content || ''
 
     let parsed
-
     try {
       parsed = JSON.parse(text)
     } catch {
       console.error('Invalid AI response:', text)
-
       return res.status(500).json({
         success: false,
         error: 'Invalid response from AI',
       })
     }
 
-    const result = {
-      dishName: parsed.dishName || 'Unknown Dish',
-      components: Array.isArray(parsed.components)
-        ? parsed.components
-        : [],
-      confidence:
-        typeof parsed.confidence === 'number'
-          ? parsed.confidence
-          : 0.5,
-      estimatedPortion:
-        parsed.estimatedPortion || 'Unknown',
-      estimatedNutrition: {
-        carbohydrates:
-          parsed.estimatedNutrition?.carbohydrates || 'N/A',
-        calories:
-          parsed.estimatedNutrition?.calories || 'N/A',
-        sugar:
-          parsed.estimatedNutrition?.sugar || 'N/A',
-      },
-      observations: parsed.observations || '',
-      suggestion: parsed.suggestion || '',
-    }
+    const dishName = parsed.dish_name || 'Unidentified dish'
+    const dishNameEn = parsed.dish_name_en || ''
+    const components = Array.isArray(parsed.visible_components) ? parsed.visible_components : []
+    const confidence = ['high', 'medium', 'low'].includes(parsed.confidence) ? parsed.confidence : 'low'
+
+    // matched_known_dish is decided by OUR database lookup, not the AI's self-report —
+    // the model has no visibility into what's actually in malaysianDishes.js.
+    const matchedKnownDish = Boolean(findDish(dishName))
+    const needsConfirmation = confidence !== 'high' || !matchedKnownDish
 
     return res.status(200).json({
       success: true,
-      data: result,
+      data: {
+        dishName,
+        dishNameEn,
+        components,
+        confidence,
+        matchedKnownDish,
+        needsConfirmation,
+      },
     })
   } catch (err) {
     console.error('Network error:', err)
