@@ -19,6 +19,22 @@ export function scaleNutrition(nutrition, factor) {
   }
 }
 
+// Proportionally scales a matched dish's nutrition when the user adds/removes
+// ingredients — an honest approximation (same math as the portion-size picker),
+// not invented per-ingredient precision. No-ops when the list is unchanged.
+export function scaleForComponentEdit(baselineComponents, editedComponents, nutrition) {
+  const baselineCount = Array.isArray(baselineComponents) ? baselineComponents.length : 0
+  const editedCount = Array.isArray(editedComponents) ? editedComponents.length : 0
+
+  if (baselineCount === 0 || editedCount === baselineCount) {
+    return { nutrition, adjusted: false }
+  }
+
+  const rawRatio = editedCount / baselineCount
+  const ratio = Math.min(1.5, Math.max(0.3, rawRatio))
+  return { nutrition: scaleNutrition(nutrition, ratio), adjusted: true }
+}
+
 export function buildPlainSummary(carbsG, glycemicLoad) {
   if (glycemicLoad === 'high' || (typeof carbsG === 'number' && carbsG >= 70)) {
     return 'This is a higher-carb meal that can raise blood sugar quickly.'

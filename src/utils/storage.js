@@ -61,3 +61,7 @@ export function clearHistory() {
     // fail silently
   }
 }
+
+export function replaceAllHistory(items) {
+  writeStorage(Array.isArray(items) ? items : [])
+}

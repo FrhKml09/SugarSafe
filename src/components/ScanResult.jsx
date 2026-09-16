@@ -11,8 +11,18 @@ export default function ScanResult({
   onRecalculate,
   recalculating,
 }) {
-  const { dishName, dishNameEn, components, servingSize, nutrition, glycemicLoad, source, roughEstimate } =
-    result || {}
+  const {
+    dishName,
+    dishNameEn,
+    components,
+    servingSize,
+    nutrition,
+    glycemicLoad,
+    source,
+    roughEstimate,
+    matchedKnownDish,
+    componentAdjusted,
+  } = result || {}
 
   const [editing, setEditing] = useState(false)
   const [editDishName, setEditDishName] = useState('')
@@ -232,6 +242,18 @@ export default function ScanResult({
               <div className="scan-result-rough-banner">
                 Rough estimate — please confirm the components above are accurate.
               </div>
+            )}
+
+            {!roughEstimate && matchedKnownDish && componentAdjusted && (
+              <p className="sf-dish-sub" style={{ marginTop: 8 }}>
+                Adjusted proportionally for your ingredient changes from the standard {dishName} recipe —
+                an approximation based on ingredient count, not a measured per-ingredient breakdown.
+              </p>
+            )}
+            {!roughEstimate && matchedKnownDish && !componentAdjusted && (
+              <p className="sf-dish-sub" style={{ marginTop: 8 }}>
+                These are values for a standard {dishName}.
+              </p>
             )}
 
             <div className="sf-divider" />

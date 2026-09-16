@@ -59,3 +59,7 @@ export function deleteGlucoseReading(id) {
   const filtered = readings.filter((item) => item.id !== id)
   writeStorage(filtered)
 }
+
+export function replaceAllGlucoseReadings(items) {
+  writeStorage(Array.isArray(items) ? items : [])
+}

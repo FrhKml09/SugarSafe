@@ -6,8 +6,12 @@ import PortionStep from './components/PortionStep'
 import FinalSummary from './components/FinalSummary'
 import HistoryList from './components/HistoryList'
 import GlucoseLog from './components/GlucoseLog'
+import HabitsLog from './components/HabitsLog'
+import Profile from './components/Profile'
+import Settings from './components/Settings'
 import About from './components/About'
-import { ScanIcon, HistoryIcon, GlucoseIcon, AboutIcon } from './components/icons'
+import FeedbackBubble from './components/FeedbackBubble'
+import { ScanIcon, HistoryIcon, GlucoseIcon, WalkIcon, AboutIcon } from './components/icons'
 import { analyzeFoodImage, recalculateNutrition, logToChain } from './utils/api'
 import { getHistory, addToHistory, updateHistoryEntry, deleteFromHistory } from './utils/storage'
 import {
@@ -16,13 +20,23 @@ import {
   updateGlucoseReading,
   deleteGlucoseReading,
 } from './utils/glucoseStorage'
-import { scaleNutrition, buildPlainSummary, buildGlucoseNote, PORTION_OPTIONS } from './utils/nutritionHelpers'
+import { getHabitEntries, addHabitEntry, updateHabitEntry, deleteHabitEntry } from './utils/habitStorage'
+import { getProfile, saveProfile, hasSeenOnboarding, markOnboardingSeen } from './utils/profileStorage'
+import {
+  scaleNutrition,
+  scaleForComponentEdit,
+  buildPlainSummary,
+  buildGlucoseNote,
+  PORTION_OPTIONS,
+} from './utils/nutritionHelpers'
 import './App.css'
 
 const SCAN_VIEWS = ['scan', 'confirm', 'nutrition', 'portion', 'final']
 
 function App() {
-  const [currentView, setCurrentView] = useState('scan')
+  const [currentView, setCurrentView] = useState(() =>
+    !getProfile() && !hasSeenOnboarding() ? 'onboarding' : 'scan'
+  )
   const [loading, setLoading] = useState(false)
   const [resolving, setResolving] = useState(false)
   const [recalculating, setRecalculating] = useState(false)
@@ -33,6 +47,8 @@ function App() {
   const [history, setHistory] = useState(() => getHistory())
   const [saved, setSaved] = useState(false)
   const [glucoseReadings, setGlucoseReadings] = useState(() => getGlucoseReadings())
+  const [habitEntries, setHabitEntries] = useState(() => getHabitEntries())
+  const [profile, setProfile] = useState(() => getProfile())
   const [capturedPhotoUrl, setCapturedPhotoUrl] = useState(null)
 
   useEffect(() => {
@@ -84,12 +100,40 @@ function App() {
     }
   }
 
+  function handleManualEntry(dishName) {
+    setError('')
+    setNutritionResult(null)
+    setFinalResult(null)
+    setSaved(false)
+    if (capturedPhotoUrl) URL.revokeObjectURL(capturedPhotoUrl)
+    setCapturedPhotoUrl(null)
+    setIdentification({
+      dishName,
+      dishNameEn: '',
+      components: [],
+      confidence: 'low',
+      needsConfirmation: true,
+    })
+    setCurrentView('confirm')
+  }
+
   async function handleConfirm(dishName, components) {
     setError('')
     setResolving(true)
     try {
       const nut = await resolveNutrition(dishName, components)
-      setNutritionResult(nut)
+
+      if (nut.matchedKnownDish) {
+        const { nutrition, adjusted } = scaleForComponentEdit(
+          identification?.components,
+          components,
+          nut.nutrition
+        )
+        setNutritionResult({ ...nut, nutrition, componentAdjusted: adjusted })
+      } else {
+        setNutritionResult(nut)
+      }
+
       setCurrentView('nutrition')
     } catch (err) {
       setError(err.message || 'Could not look up nutrition. Please try again.')
@@ -103,7 +147,17 @@ function App() {
     setError('')
     try {
       const nut = await resolveNutrition(newDishName, newComponents)
-      setNutritionResult(nut)
+
+      if (nut.matchedKnownDish && newDishName === nutritionResult?.dishName) {
+        const { nutrition, adjusted } = scaleForComponentEdit(
+          nutritionResult?.components,
+          newComponents,
+          nut.nutrition
+        )
+        setNutritionResult({ ...nut, nutrition, componentAdjusted: adjusted })
+      } else {
+        setNutritionResult(nut)
+      }
     } catch (err) {
       setError(err.message || 'Recalculation failed. Please try again.')
     } finally {
@@ -128,9 +182,37 @@ function App() {
       roughEstimate: nutritionResult.roughEstimate,
       glucoseNote,
       portionLabel,
+      portionFactor: factor,
+      components: nutritionResult.components,
+      matchedKnownDish: nutritionResult.matchedKnownDish,
       glycemicLoad: nutritionResult.glycemicLoad,
+      componentAdjusted: nutritionResult.componentAdjusted,
     })
     setCurrentView('final')
+  }
+
+  // Preview-only "what if" recalculation for the Final screen — never overwrites
+  // the meal actually being saved to history, just estimates the impact of
+  // eating less or skipping an ingredient next time.
+  async function handleWhatIfRecalculate(newComponents) {
+    if (!finalResult) return null
+
+    const nut = await resolveNutrition(finalResult.dishName, newComponents)
+    let nutrition = nut.nutrition
+
+    if (nut.matchedKnownDish) {
+      const { nutrition: adjusted } = scaleForComponentEdit(
+        finalResult.components,
+        newComponents,
+        nut.nutrition
+      )
+      nutrition = adjusted
+    }
+
+    return {
+      ...nut,
+      nutrition: scaleNutrition(nutrition, finalResult.portionFactor ?? 1),
+    }
   }
 
   function handleSaveToHistory() {
@@ -195,11 +277,57 @@ function App() {
     setGlucoseReadings(getGlucoseReadings())
   }
 
+  function handleAddHabit(habit) {
+    const entry = addHabitEntry(habit)
+    setHabitEntries(getHabitEntries())
+
+    // Additive tamper-proof logging — fires in the background, never blocks the save.
+    logToChain('habit', entry.typeLabel, entry.timestamp).then(({ signature, cluster }) => {
+      if (signature) {
+        updateHabitEntry(entry.id, { txSignature: signature, chainCluster: cluster })
+        setHabitEntries(getHabitEntries())
+      }
+    })
+  }
+
+  function handleDeleteHabit(id) {
+    deleteHabitEntry(id)
+    setHabitEntries(getHabitEntries())
+  }
+
+  function handleSaveProfile(newProfile) {
+    saveProfile(newProfile)
+    setProfile(newProfile)
+  }
+
+  function handleOnboardingSave(newProfile) {
+    saveProfile(newProfile)
+    setProfile(newProfile)
+    markOnboardingSeen()
+    setCurrentView('scan')
+  }
+
+  function handleOnboardingSkip() {
+    markOnboardingSeen()
+    setCurrentView('scan')
+  }
+
   function goToScan() {
     setCurrentView('scan')
   }
 
   function renderView() {
+    if (currentView === 'onboarding') {
+      return (
+        <Profile
+          mode="onboarding"
+          profile={profile}
+          onSave={handleOnboardingSave}
+          onSkip={handleOnboardingSkip}
+        />
+      )
+    }
+
     if (currentView === 'history') {
       return <HistoryList history={history} onDelete={handleDelete} onBack={goToScan} onRescan={handleScanAgain} />
     }
@@ -216,8 +344,32 @@ function App() {
       )
     }
 
+    if (currentView === 'habits') {
+      return (
+        <HabitsLog
+          entries={habitEntries}
+          onAdd={handleAddHabit}
+          onDelete={handleDeleteHabit}
+          onBack={goToScan}
+        />
+      )
+    }
+
+    if (currentView === 'profile') {
+      return <Profile profile={profile} onSave={handleSaveProfile} onBack={() => setCurrentView('settings')} />
+    }
+
+    if (currentView === 'settings') {
+      return (
+        <Settings
+          onOpenProfile={() => setCurrentView('profile')}
+          onBack={() => setCurrentView('about')}
+        />
+      )
+    }
+
     if (currentView === 'about') {
-      return <About />
+      return <About onOpenSettings={() => setCurrentView('settings')} />
     }
 
     if (currentView === 'confirm' && identification) {
@@ -264,18 +416,19 @@ function App() {
           photoUrl={capturedPhotoUrl}
           onSaveToHistory={handleSaveToHistory}
           onScanAgain={handleScanAgain}
+          onWhatIf={handleWhatIfRecalculate}
           saved={saved}
         />
       )
     }
 
-    return <CameraCapture onCapture={handleCapture} />
+    return <CameraCapture onCapture={handleCapture} onManualEntry={handleManualEntry} history={history} />
   }
 
   return (
     <div className="app">
       <div className="app-content">
-        {(currentView === 'portion' || currentView === 'about') && (
+        {currentView === 'portion' && (
           <header className="app-header">
             <h1>SugarSafe</h1>
             <p>Malaysian food photos → simple, culturally relevant diabetes guidance</p>
@@ -302,6 +455,9 @@ function App() {
         {renderView()}
       </div>
 
+      {currentView !== 'onboarding' && <FeedbackBubble />}
+
+      {currentView !== 'onboarding' && (
       <nav className="tab-bar" aria-label="Main navigation">
         <button
           type="button"
@@ -332,7 +488,16 @@ function App() {
         </button>
         <button
           type="button"
-          className={`tab-item ${currentView === 'about' ? 'tab-item-active' : ''}`}
+          className={`tab-item ${currentView === 'habits' ? 'tab-item-active' : ''}`}
+          onClick={() => setCurrentView('habits')}
+          aria-label="Habits"
+        >
+          <span className="tab-icon"><WalkIcon /></span>
+          <span className="tab-label">Habits</span>
+        </button>
+        <button
+          type="button"
+          className={`tab-item ${['about', 'settings', 'profile'].includes(currentView) ? 'tab-item-active' : ''}`}
           onClick={() => setCurrentView('about')}
           aria-label="About"
         >
@@ -340,6 +505,7 @@ function App() {
           <span className="tab-label">About</span>
         </button>
       </nav>
+      )}
     </div>
   )
 }

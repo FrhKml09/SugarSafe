@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import Disclaimer from './Disclaimer'
+import StreakCalendar from './StreakCalendar'
 import { CheckIcon } from './icons'
 
 const SCAN_TIPS = [
@@ -8,13 +9,14 @@ const SCAN_TIPS = [
   'Fit the whole portion in the frame',
 ]
 
-export default function CameraCapture({ onCapture }) {
+export default function CameraCapture({ onCapture, onManualEntry, history }) {
   const videoRef = useRef(null)
   const fileInputRef = useRef(null)
   const canvasRef = useRef(null)
   const [stream, setStream] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [manualName, setManualName] = useState('')
 
   useEffect(() => {
     let active = true
@@ -91,10 +93,26 @@ export default function CameraCapture({ onCapture }) {
     event.target.value = ''
   }
 
+  function handleManualSubmit(event) {
+    event.preventDefault()
+    if (!manualName.trim()) return
+    onManualEntry(manualName.trim())
+    setManualName('')
+  }
+
   return (
     <div className="scan-screen">
       <p className="screen-eyebrow">SugarSafe Heritage</p>
       <h1 className="screen-title">Scan Your Meal</h1>
+
+      {Array.isArray(history) && (
+        <StreakCalendar
+          title="Meal Logging Streak"
+          subtitle="Days you've logged a meal"
+          entries={history}
+          hint="Log every meal you scan to keep your streak going."
+        />
+      )}
 
       <Disclaimer />
 
@@ -140,6 +158,24 @@ export default function CameraCapture({ onCapture }) {
             <span className="camera-upload-button">Choose file</span>
           </label>
         </div>
+
+        {onManualEntry && (
+          <form className="camera-manual-entry" onSubmit={handleManualSubmit}>
+            <p className="camera-upload-text">Photo recognition unavailable? Type the dish name</p>
+            <div className="camera-manual-entry-row">
+              <input
+                type="text"
+                className="camera-manual-entry-input"
+                placeholder="e.g. Nasi Lemak"
+                value={manualName}
+                onChange={(e) => setManualName(e.target.value)}
+              />
+              <button type="submit" className="camera-manual-entry-btn" disabled={!manualName.trim()}>
+                Go
+              </button>
+            </div>
+          </form>
+        )}
       </div>
 
       <div className="scan-tips-card">

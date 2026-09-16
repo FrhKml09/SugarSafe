@@ -127,3 +127,75 @@ export function TrashIcon(props) {
     </svg>
   )
 }
+
+export function WalkIcon(props) {
+  return (
+    <svg {...base(props)}>
+      <circle cx="13.2" cy="4.3" r="1.6" fill="currentColor" stroke="none" />
+      <path d="M11 9l-1.5 4 2 1.5-.8 6.5" />
+      <path d="M11 9l3 .5 2.5 2.5" />
+      <path d="M13.5 15l2.5 1.5 1.5 3.5" />
+      <path d="M9.5 13l-3 1.5-1 3" />
+    </svg>
+  )
+}
+
+export function ChevronIcon(props) {
+  return (
+    <svg {...base(props)}>
+      <path d="M6 9l6 6 6-6" />
+    </svg>
+  )
+}
+
+export function DownloadIcon(props) {
+  return (
+    <svg {...base(props)}>
+      <path d="M12 4v11" />
+      <path d="M7.5 11.5L12 16l4.5-4.5" />
+      <path d="M5 19.5h14" />
+    </svg>
+  )
+}
+
+export function UploadIcon(props) {
+  return (
+    <svg {...base(props)}>
+      <path d="M12 16V5" />
+      <path d="M7.5 9.5L12 5l4.5 4.5" />
+      <path d="M5 19.5h14" />
+    </svg>
+  )
+}
+
+export function SettingsIcon(props) {
+  return (
+    <svg {...base(props)}>
+      <line x1="4" y1="7" x2="20" y2="7" />
+      <circle cx="9" cy="7" r="2.2" />
+      <line x1="4" y1="12" x2="20" y2="12" />
+      <circle cx="15" cy="12" r="2.2" />
+      <line x1="4" y1="17" x2="20" y2="17" />
+      <circle cx="11" cy="17" r="2.2" />
+    </svg>
+  )
+}
+
+export function MessageIcon(props) {
+  return (
+    <svg {...base(props)}>
+      <path d="M4 5.5h16v11H9l-4 3.5v-3.5H4z" />
+      <line x1="8" y1="10" x2="16" y2="10" />
+      <line x1="8" y1="13" x2="13" y2="13" />
+    </svg>
+  )
+}
+
+export function ProfileIcon(props) {
+  return (
+    <svg {...base(props)}>
+      <circle cx="12" cy="8.3" r="3.3" />
+      <path d="M5.2 20c1-3.7 4.1-5.8 6.8-5.8s5.8 2.1 6.8 5.8" />
+    </svg>
+  )
+}
