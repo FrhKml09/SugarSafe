@@ -32,6 +32,7 @@ import {
 import './App.css'
 
 const SCAN_VIEWS = ['scan', 'confirm', 'nutrition', 'portion', 'final']
+const FEEDBACK_BUBBLE_HIDDEN_VIEWS = ['onboarding']
 
 function App() {
   const [currentView, setCurrentView] = useState(() =>
@@ -455,7 +456,7 @@ function App() {
         {renderView()}
       </div>
 
-      {currentView !== 'onboarding' && <FeedbackBubble />}
+      {!FEEDBACK_BUBBLE_HIDDEN_VIEWS.includes(currentView) && <FeedbackBubble />}
 
       {currentView !== 'onboarding' && (
       <nav className="tab-bar" aria-label="Main navigation">

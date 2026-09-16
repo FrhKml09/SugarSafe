@@ -14,9 +14,8 @@ export default function FeedbackBubble() {
       aria-label="Found a bug or an error? WhatsApp me"
     >
       <span className="feedback-bubble-icon">
-        <MessageIcon width={18} height={18} />
+        <MessageIcon width={16} height={16} />
       </span>
-      <span className="feedback-bubble-text">Found a bug? WhatsApp me</span>
     </a>
   )
 }

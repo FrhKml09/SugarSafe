@@ -2769,38 +2769,25 @@ button {
 
 .feedback-bubble {
   position: fixed;
-  right: 16px;
-  bottom: calc(88px + env(safe-area-inset-bottom));
+  top: calc(14px + env(safe-area-inset-top));
+  right: 14px;
   z-index: 15;
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 14px 6px 6px;
-  border-radius: 999px;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
   background: var(--color-primary);
   color: #ffffff;
   text-decoration: none;
-  box-shadow: 0 6px 16px rgba(30, 59, 44, 0.35);
-  font-size: 12.5px;
-  font-weight: 600;
-  max-width: calc(100vw - 32px);
+  box-shadow: 0 4px 12px rgba(30, 59, 44, 0.35);
 }
 
 .feedback-bubble-icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
-  flex-shrink: 0;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.18);
-}
-
-.feedback-bubble-text {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 /* Backup & restore (About screen) */
