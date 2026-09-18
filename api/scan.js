@@ -1,4 +1,5 @@
 import { findDish } from '../src/data/malaysianDishes.js'
+import { reportError } from './_sentry.js'
 
 const IDENTIFY_PROMPT = `You are a food identification assistant for SugarSafe, a Malaysian food-photo app for people managing or at risk of diabetes.
 
@@ -52,6 +53,7 @@ export default async function handler(req, res) {
   ].filter((p) => p.apiKey && p.baseURL && p.model)
 
   if (providers.length === 0) {
+    await reportError(new Error('Server misconfigured: missing API configuration'), { route: 'scan' })
     return res
       .status(500)
       .json({ success: false, error: 'Server misconfigured: missing API configuration' })
@@ -106,6 +108,7 @@ export default async function handler(req, res) {
   }
 
   if (text === null) {
+    await reportError(new Error(lastError || 'All AI providers failed'), { route: 'scan', stage: 'all-providers-exhausted' })
     return res.status(500).json({ success: false, error: lastError || 'All AI providers failed' })
   }
 
@@ -114,6 +117,7 @@ export default async function handler(req, res) {
     parsed = JSON.parse(text)
   } catch {
     console.error('Invalid AI response:', text)
+    await reportError(new Error('Invalid response from AI'), { route: 'scan', rawText: text.slice(0, 500) })
     return res.status(500).json({
       success: false,
       error: 'Invalid response from AI',

@@ -1,4 +1,5 @@
 import { findDish } from '../src/data/malaysianDishes.js'
+import { reportError } from './_sentry.js'
 
 const FALLBACK_PROMPT = `You are a nutrition estimation assistant for SugarSafe, a Malaysian food-photo app for people managing or at risk of diabetes.
 
@@ -103,6 +104,7 @@ export default async function handler(req, res) {
   const model = process.env.OPENAI_MODEL
 
   if (!apiKey || !baseURL || !model) {
+    await reportError(new Error('Server misconfigured: missing API configuration'), { route: 'recalculate' })
     return res
       .status(500)
       .json({ success: false, error: 'Server misconfigured: missing API configuration' })
@@ -138,6 +140,7 @@ export default async function handler(req, res) {
     return res.status(200).json({ success: true, data: result })
   } catch (err) {
     console.error('Recalculate error:', err)
+    await reportError(err, { route: 'recalculate', dishName, components })
     return res.status(500).json({
       success: false,
       error: err.message || 'Network error calling AI provider',
