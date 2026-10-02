@@ -2718,6 +2718,61 @@ button {
   color: var(--color-text-secondary);
 }
 
+/* Recent Meals / Log Again */
+
+.recent-meals-card {
+  margin-bottom: 16px;
+}
+
+.recent-meals-row {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  margin: 0 -2px;
+}
+
+.recent-meal-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  flex-shrink: 0;
+  width: 112px;
+  padding: 10px 12px;
+  margin: 0 2px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-pill-bg);
+  text-align: left;
+}
+
+.recent-meal-chip-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--color-card);
+  color: var(--color-secondary);
+}
+
+.recent-meal-chip-name {
+  width: 100%;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.recent-meal-chip-meta {
+  font-size: 10.5px;
+  color: var(--color-text-secondary);
+}
+
 /* Profile link card (About screen) */
 
 .sf-profile-link {

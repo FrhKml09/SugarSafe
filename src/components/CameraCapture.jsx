@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import Disclaimer from './Disclaimer'
 import StreakCalendar from './StreakCalendar'
+import RecentMeals from './RecentMeals'
 import { CheckIcon } from './icons'
 
 const SCAN_TIPS = [
@@ -9,7 +10,7 @@ const SCAN_TIPS = [
   'Fit the whole portion in the frame',
 ]
 
-export default function CameraCapture({ onCapture, onManualEntry, history }) {
+export default function CameraCapture({ onCapture, onManualEntry, history, recentMeals, onLogAgain }) {
   const videoRef = useRef(null)
   const fileInputRef = useRef(null)
   const canvasRef = useRef(null)
@@ -113,6 +114,8 @@ export default function CameraCapture({ onCapture, onManualEntry, history }) {
           hint="Log every meal you scan to keep your streak going."
         />
       )}
+
+      {onLogAgain && <RecentMeals meals={recentMeals} onSelect={onLogAgain} />}
 
       <Disclaimer />
 

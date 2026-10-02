@@ -22,6 +22,7 @@ import {
 } from './utils/glucoseStorage'
 import { getHabitEntries, addHabitEntry, updateHabitEntry, deleteHabitEntry } from './utils/habitStorage'
 import { getProfile, saveProfile, hasSeenOnboarding, markOnboardingSeen } from './utils/profileStorage'
+import { getRecentMeals, upsertRecentMeal } from './utils/recentMealsStorage'
 import {
   scaleNutrition,
   scaleForComponentEdit,
@@ -51,6 +52,7 @@ function App() {
   const [habitEntries, setHabitEntries] = useState(() => getHabitEntries())
   const [profile, setProfile] = useState(() => getProfile())
   const [capturedPhotoUrl, setCapturedPhotoUrl] = useState(null)
+  const [recentMeals, setRecentMeals] = useState(() => getRecentMeals())
 
   useEffect(() => {
     setHistory(getHistory())
@@ -59,6 +61,14 @@ function App() {
   async function resolveNutrition(dishName, components) {
     const data = await recalculateNutrition(dishName, components)
     return data.data
+  }
+
+  // A dish is "confirmed" either by passing through ConfirmDish, or by being
+  // auto-matched with high confidence straight from the photo — both count as
+  // confirmed for Log Again purposes.
+  function saveToRecentMeals(nut) {
+    upsertRecentMeal(nut)
+    setRecentMeals(getRecentMeals())
   }
 
   async function handleCapture(file) {
@@ -92,6 +102,7 @@ function App() {
     try {
       const nut = await resolveNutrition(idResult.dishName, idResult.components)
       setNutritionResult(nut)
+      saveToRecentMeals(nut)
       setCurrentView('nutrition')
     } catch (err) {
       setError(err.message || 'Could not look up nutrition. Please try again.')
@@ -123,6 +134,7 @@ function App() {
     setResolving(true)
     try {
       const nut = await resolveNutrition(dishName, components)
+      let resolved = nut
 
       if (nut.matchedKnownDish) {
         const { nutrition, adjusted } = scaleForComponentEdit(
@@ -130,11 +142,11 @@ function App() {
           components,
           nut.nutrition
         )
-        setNutritionResult({ ...nut, nutrition, componentAdjusted: adjusted })
-      } else {
-        setNutritionResult(nut)
+        resolved = { ...nut, nutrition, componentAdjusted: adjusted }
       }
 
+      setNutritionResult(resolved)
+      saveToRecentMeals(resolved)
       setCurrentView('nutrition')
     } catch (err) {
       setError(err.message || 'Could not look up nutrition. Please try again.')
@@ -242,6 +254,20 @@ function App() {
         setHistory(getHistory())
       }
     })
+  }
+
+  // Skips the camera, vision identification, and confirm steps entirely —
+  // reuses the nutrition snapshot saved when this dish was last confirmed,
+  // and drops the user straight into "how much did you eat this time."
+  function handleLogAgain(meal) {
+    setError('')
+    setIdentification(null)
+    setFinalResult(null)
+    setSaved(false)
+    if (capturedPhotoUrl) URL.revokeObjectURL(capturedPhotoUrl)
+    setCapturedPhotoUrl(null)
+    setNutritionResult(meal.nutritionResult)
+    setCurrentView('portion')
   }
 
   function handleScanAgain() {
@@ -423,7 +449,15 @@ function App() {
       )
     }
 
-    return <CameraCapture onCapture={handleCapture} onManualEntry={handleManualEntry} history={history} />
+    return (
+      <CameraCapture
+        onCapture={handleCapture}
+        onManualEntry={handleManualEntry}
+        history={history}
+        recentMeals={recentMeals}
+        onLogAgain={handleLogAgain}
+      />
+    )
   }
 
   return (
